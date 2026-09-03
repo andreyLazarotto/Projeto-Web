@@ -1,0 +1,22 @@
+@baseUrl = http://localhost:3000
+
+
+### Servidor no ar???
+GET {{baseUrl}}/api/health
+
+
+### Versão do gerenciador de tarefas
+GET {{baseUrl}}/api/version
+
+
+### Listar tarefas
+GET {{baseUrl}}/api/tasks
+
+
+### Cadastrar uma tarefa
+POST {{baseUrl}}/api/tasks
+Content-Type: application/json
+
+{
+    "title": "Dormir cedo hoje"
+}
