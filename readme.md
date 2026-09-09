@@ -1,6 +1,6 @@
 README:
 Estrutura modelo para o arquivo MD do diário:
-# Aula 00 — Ambiente e primeiros passos (09/09/2026)
+# Aula 03 — Ambiente e primeiros passos (09/09/2026)
 
 ## ✅ O que eu aprendi
 Hoje eu aprendi sobre sanitização e segurança de dados em aplicações. Entendi a importância de validar e tratar os dados recebidos pelo sistema para evitar problemas de segurança, principalmente em consultas ao banco de dados e parâmetros enviados pela URL. Também aprendi sobre Prepared Statements, funções helpers, coerção segura de tipos e validação de entradas.
