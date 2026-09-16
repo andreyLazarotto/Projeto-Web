@@ -1,15 +1,15 @@
 README:
 Estrutura modelo para o arquivo MD do diário:
-# Aula 03 — Ambiente e primeiros passos (09/09/2026)
+# Aula 04 —Evoluindo a Segurança das Rotas de Escrita (16/09/2026)
 
 ## ✅ O que eu aprendi
-Hoje eu aprendi sobre sanitização e segurança de dados em aplicações. Entendi a importância de validar e tratar os dados recebidos pelo sistema para evitar problemas de segurança, principalmente em consultas ao banco de dados e parâmetros enviados pela URL. Também aprendi sobre Prepared Statements, funções helpers, coerção segura de tipos e validação de entradas.
+Hoje eu aprendi sobre como aumentar a segurança das rotas de escrita de uma API, principalmente nas operações post, put, patch e delete e que a importância de validar os tipos dos dados, normalizar valores permitidos e centralizar a validação de IDs com funções auxiliares.
 
 ## 🧩 Principal dificuldade
-A principal dificuldade foi entender como dados malformados ou parâmetros inesperados podem causar problemas no sistema, como SQL Injection, manipulação de consultas e erros em rotas GET. Também foi um pouco difícil entender a diferença entre simplesmente receber um dado e realmente validá-lo antes de utilizá-lo.
+Dificuldade como proteger as rotas contra dados maliciosos e como diferenciar os tratamentos de cada operação. Como é a primeira vez fazendo algo assim.
 
 ## 🔧 Como eu resolvi
-Eu entendi que a melhor forma de evitar esses problemas é não confiar diretamente nos dados recebidos pelo usuário. Para isso, utilizei validações, conversão segura de tipos, funções auxiliares e Prepared Statements para separar os dados dos comandos SQL. Também aprendi a tratar os parâmetros das rotas antes de utilizá-los no sistema.
+É necessário validar os dados antes de permitir que eles cheguem ao banco, e que o sistema deve retornar erros genéricos para o cliente, enquanto os detalhes reais ficam registrados nos logs do servidor.
 
 ## 💡Observações (opcional)
-A aula mostrou que a segurança precisa ser pensada desde o desenvolvimento da aplicação. Pequenos cuidados com a entrada de dados podem evitar problemas maiores, principalmente quando o sistema trabalha com banco de dados e requisições externas.
+Que é sempre importante evitar SQL Injection, garantir que alterações sejam feitas de forma segura e utilizar rollback quando uma operação falhar. 

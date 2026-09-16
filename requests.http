@@ -86,3 +86,4 @@ GET http://localhost:3000/api/tasks?search=a&search=b
 # Com proteção (Passo 4): O servidor barra o dado ruim, força uma string vazia ("") e lista tudo de
 propósito e com segurança.
 GET http://localhost:3000/api/tasks?search[]=a&search[]=b
+

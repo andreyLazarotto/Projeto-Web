@@ -2,7 +2,7 @@ import express from "express";
 import Database from "better-sqlite3";
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // 1. Criamos um "molde" (Interface) para nossas tarefas
 interface Tarefa {
@@ -106,142 +106,141 @@ res.status(500).json({ error: "Erro interno ao processar a listagem." });
 
 
 app.post("/api/tasks", (req, res) => {
-    const { title, prioridade } = req.body;
-    const prioridadeValida = ['low', 'medium', 'high'].includes(prioridade) ? prioridade : 'medium';
-    
-    if (!title || title.trim().length < 3) {
-        return res.status(400).json({ 
-            error: "O título da tarefa é obrigatório e deve conter pelo menos 3 caracteres válidos." 
-        });
-    }
-
-    try {
-        const sql = "INSERT INTO tarefas (titulo, status, prioridade) VALUES (?, 'pending', ?)";
-        const resultado = db.prepare(sql).run(title.trim(), prioridadeValida);
-        const novaTarefa = db.prepare("SELECT * FROM tarefas WHERE id = ?").get(resultado.lastInsertRowid);
-        return res.status(201).json(novaTarefa);
-    } catch (erro) {
-        return res.status(500).json({ error: "Erro ao processar persistência" });
-    }
+const { titulo, prioridade } = req.body;
+const prioridadeValida = normalizarPrioridade(prioridade);
+// Validação via helper (type guard)
+if (!tituloValido(titulo)) {
+return res.status(400).json({
+error: "O título da tarefa é obrigatório e deve conter pelo menos 3 caracteres válidos."
+});
+}
+try {
+const resultado = stmtInserirTarefa.run(titulo.trim(),
+prioridadeValida);
+const novaTarefa =
+stmtBuscarPorId.get(resultado.lastInsertRowid) as Tarefa;
+return res.status(201).json(novaTarefa);
+} catch {
+return res.status(500).json({ error: "Erro ao processar persistência" });
+}
 });
 
 app.delete("/api/tasks/:id", (req, res) => {
-    const { id } = req.params;
-    try {
-        const sql = "DELETE FROM tarefas WHERE id = ?";
-        const resultado = db.prepare(sql).run(id);
-        if (resultado.changes === 0) {
-            res.status(404).json({ error: "Tarefa não localizada para exclusão." });
-            return;
-        }
-        res.json({ message: "Tarefa excluída do banco SQLite com sucesso!" });
-    } catch (erro) { 
-        res.status(500).json({ error: erro instanceof Error ? erro.message : "Erro desconhecido" });
-    }
+// Validação de ID padronizada (igual PUT/PATCH)
+const idParaDeletar = parsearId(req.params.id);
+if (idParaDeletar === null) {
+return res.status(400).json({ error: "ID inválido." });
+}
+try {
+const resultado = stmtDeletarTarefa.run(idParaDeletar);
+if (resultado.changes === 0) {
+return res.status(404).json({ error: "Tarefa não localizada para exclusão." });
+}
+res.json({ message: "Tarefa excluída do banco SQLite com sucesso!" });
+} catch {
+res.status(500).json({ error: "Erro interno ao processar a exclusão." });
+}
 });
 
 app.put("/api/tasks/:id", (req, res) => {
-  const idParaAtualizar = parseInt(req.params.id);
-  if (isNaN(idParaAtualizar)) {
-    return res.status(400).json({ error: "ID inválido." });
-  }
-
-  const { title, prioridade, status } = req.body;
-
-  if (!title || title.trim().length < 3) {
-    return res.status(400).json({
-      error: "O título da tarefa é obrigatório e deve conter pelo menos 3 caracteres válidos."
-    });
-  }
-
-  const prioridadeValida = ['low', 'medium', 'high'].includes(prioridade) ? prioridade : 'medium';
-  const statusValido = ['pending', 'completed'].includes(status) ? status : 'pending';
-
-  try {
-    const sql = "UPDATE tarefas SET titulo = ?, status = ?, prioridade = ? WHERE id = ?";
-    const resultado = db.prepare(sql).run(title.trim(), statusValido, prioridadeValida, idParaAtualizar);
-
-    if (resultado.changes === 0) {
-      return res.status(404).json({ message: "Tarefa não encontrada para atualização!" });
-    }
-
-    const tarefaAtualizada = db.prepare("SELECT * FROM tarefas WHERE id = ?").get(idParaAtualizar);
-    return res.status(200).json(tarefaAtualizada);
-
-  } catch (erro) {
-    return res.status(500).json({ error: "Erro ao processar a atualização no banco de dados." });
-  }
+const idParaAtualizar = parsearId(req.params.id);
+if (idParaAtualizar === null) {
+return res.status(400).json({ error: "ID inválido." });
+}
+const { titulo, prioridade, status } = req.body;
+// Validação via helpers
+if (!tituloValido(titulo)) {
+return res.status(400).json({
+error: "O título da tarefa é obrigatório e deve conter pelo menos 3 caracteres válidos."
 });
+}
+const prioridadeValida = normalizarPrioridade(prioridade);
+const statusValido = normalizarStatus(status);
+try {
+// Prepared statement inline (UPDATE completo não tem statement fixo no topo)
+const sql = "UPDATE tarefas SET titulo = ?, status = ?, prioridade = ? WHERE id = ?";
+const resultado = db.prepare(sql).run(titulo.trim(),
+statusValido, prioridadeValida, idParaAtualizar);
+if (resultado.changes === 0) {
+return res.status(404).json({ message: "Tarefa não encontrada para atualização!" });
+}
+const tarefaAtualizada =
+stmtBuscarPorId.get(idParaAtualizar) as Tarefa;
+return res.status(200).json(tarefaAtualizada);
+} catch {
+return res.status(500).json({ error: "Erro ao processar a atualização no banco de dados." });
+}
+});
+
 
 app.patch("/api/tasks/:id", (req, res) => {
-  const idParaAtualizar = parseInt(req.params.id);
-  if (isNaN(idParaAtualizar)) {
-    return res.status(400).json({ error: "ID inválido." });
-  }
-
-  if (!req.body || Object.keys(req.body).length === 0) {
-    return res.status(400).json({ error: "Nenhum campo fornecido para atualização." });
-  }
-
-  const { title, prioridade, status } = req.body;
-
-  try {
-    const fluxoAtualizacao = db.transaction(() => {
-      const tarefaExistente = db.prepare("SELECT * FROM tarefas WHERE id = ?").get(idParaAtualizar) as any;
-      if (!tarefaExistente) return null;
-
-      const camposParaAtualizar: string[] = [];
-      const valoresParaAtualizar: any[] = [];
-
-      if (title !== undefined) {
-        if (typeof title !== "string" || title.trim().length < 3) {
-          throw new Error("O título da tarefa deve conter pelo menos 3 caracteres válidos.");
-        }
-        camposParaAtualizar.push("titulo = ?");
-        valoresParaAtualizar.push(title.trim());
-      }
-
-      if (prioridade !== undefined) {
-        if (!['low', 'medium', 'high'].includes(prioridade)) {
-          throw new Error("Prioridade inválida. Use 'low', 'medium' ou 'high'.");
-        }
-        camposParaAtualizar.push("prioridade = ?");
-        valoresParaAtualizar.push(prioridade);
-      }
-
-      if (status !== undefined) {
-        if (!['pending', 'completed'].includes(status)) {
-          throw new Error("Status inválido. Use 'pending' ou 'completed'.");
-        }
-        camposParaAtualizar.push("status = ?");
-        valoresParaAtualizar.push(status);
-      }
-
-      if (camposParaAtualizar.length === 0) return tarefaExistente;
-
-      const sql = `UPDATE tarefas SET ${camposParaAtualizar.join(", ")} WHERE id = ?`;
-      valoresParaAtualizar.push(idParaAtualizar);
-
-      db.prepare(sql).run(...valoresParaAtualizar);
-      return db.prepare("SELECT * FROM tarefas WHERE id = ?").get(idParaAtualizar);
-    });
-
-    const resultado = fluxoAtualizacao();
-
-    if (!resultado) {
-      return res.status(404).json({ message: "Tarefa não encontrada para atualização parcial!" });
-    }
-
-    return res.status(200).json(resultado);
-
-  } catch (erro) {
-    if (erro instanceof Error && 
-       (erro.message.includes("inválid") || erro.message.includes("caracteres"))) {
-      return res.status(400).json({ error: erro.message });
-    }
-    return res.status(500).json({ error: "Erro ao processar a atualização parcial no banco." });
-  }
+const idParaAtualizar = parsearId(req.params.id);
+if (idParaAtualizar === null) {
+return res.status(400).json({ error: "ID inválido." });
+}
+if (!req.body || Object.keys(req.body).length === 0) {
+return res.status(400).json({ error: "Nenhum campo fornecido para atualização." });
+}
+const { titulo, prioridade, status } = req.body;
+try {
+const fluxoAtualizacao = db.transaction(() => {
+// Busca com statement singleton
+const tarefaExistente =
+stmtBuscarPorId.get(idParaAtualizar) as Tarefa | undefined;
+if (!tarefaExistente) return null;
+const camposParaAtualizar: string[] = [];
+const valoresParaAtualizar: unknown[] = [];
+// Título (se enviado)
+if (titulo !== undefined) {
+if (!tituloValido(titulo)) {
+throw new Error("O título da tarefa deve conter pelo menos 3 caracteres válidos.");
+}
+camposParaAtualizar.push("titulo = ?");
+valoresParaAtualizar.push(titulo.trim());
+}
+// Prioridade (se enviada)
+if (prioridade !== undefined) {
+if (!PRIORIDADES.includes(prioridade as typeof
+PRIORIDADES[number])) {
+throw new Error("Prioridade inválida. Use 'low', 'medium' ou 'high'.");
+}
+camposParaAtualizar.push("prioridade = ?");
+valoresParaAtualizar.push(prioridade);
+}
+// Status (se enviado)
+if (status !== undefined) {
+if (!STATUS_VALIDOS.includes(status as typeof
+STATUS_VALIDOS[number])) {
+throw new Error("Status inválido. Use 'pending' ou 'completed'.");
+}
+camposParaAtualizar.push("status = ?");
+valoresParaAtualizar.push(status);
+}
+if (camposParaAtualizar.length === 0) return
+tarefaExistente;
+// Query dinâmica SEGURA: placeholders ? + valores array
+const sql = `UPDATE tarefas SET $
+{camposParaAtualizar.join(", ")} WHERE id = ?`;
+valoresParaAtualizar.push(idParaAtualizar);
+db.prepare(sql).run(...valoresParaAtualizar);
+return stmtBuscarPorId.get(idParaAtualizar) as Tarefa;
 });
+const resultado = fluxoAtualizacao();
+if (!resultado) {
+return res.status(404).json({ message: "Tarefa não encontrada para atualização parcial!" });
+}
+return res.status(200).json(resultado);
+} catch (erro) {
+// Distingue erro de validação (400) de erro interno (500)
+if (erro instanceof Error &&
+(erro.message.includes("inválid") ||
+erro.message.includes("caracteres"))) {
+return res.status(400).json({ error: erro.message });
+}
+return res.status(500).json({ error: "Erro ao processar a atualização parcial no banco." });
+}
+});
+
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando em: http://localhost:${PORT}`);

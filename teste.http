@@ -20,3 +20,24 @@ Content-Type: application/json
 {
     "title": "Dormir cedo hoje"
 }
+
+### 33. Quebrando o Type Guard: Título numérico (deve retornar 400)
+# O invasor tenta mandar um número (123) no lugar de uma string.
+# A nossa função tituloValido() vai barrar isso graças à verificação typeof
+t === "string".
+POST http://localhost:3000/api/tasks
+Content-Type: application/json
+{
+"titulo": 123,
+"prioridade": "high"
+}
+
+### 34. Quebrando a Allowlist: Status não permitido (deve retornar 400)
+# O invasor tenta inventar um status que não existe no banco ("cancelled").
+# Nossa rota PATCH verifica a lista STATUS_VALIDOS e barra a ação antes
+mesmo de abrir a transação no banco.
+PATCH http://localhost:3000/api/tasks/1
+Content-Type: application/json
+{
+"status": "cancelled"
+}
