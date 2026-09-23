@@ -43,3 +43,55 @@ Content-Type: application/json
 }
 
 //
+
+
+### Testes de Autenticação
+
+### 35. Registro com Sucesso (deve retornar 201)
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+"email": "aluno@senai.com",
+"senha": "minhaSenhaSegura123"
+}
+
+### 36. Quebrando a Validação: Senha muito curta (deve retornar 400)
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+"email": "teste@senai.com",
+"senha": "123"
+}
+
+### 37. Testando a Duplicidade: E-mail já cadastrado (deve retornar
+409)
+# Execute o teste 35 novamente e depois este aqui. O banco deve barrar!
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+"email": "aluno@senai.com",
+"senha": "outrasenha456"
+}
+
+### 38. Login com Sucesso (deve retornar o Token JWT)
+# Guarde o "token" gerado na resposta, vamos usá-lo na próxima aula!
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+"email": "aluno@senai.com",
+"senha": "minhaSenhaSegura123"
+}
+
+### 39. Login com Senha Incorreta (deve retornar 401)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+"email": "aluno@senai.com",
+"senha": "senhaerrada"
+}
+

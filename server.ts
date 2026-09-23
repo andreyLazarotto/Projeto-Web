@@ -1,3 +1,5 @@
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import express from "express";
 import Database from "better-sqlite3";
 
@@ -43,14 +45,6 @@ app.use(express.json());
 const db = new Database("tarefas.db");
 
 // Escrevemos (compilamos) as buscas UMA ÚNICA VEZ e guardamos na memória.
-const stmtContarUsuarios = db.prepare("SELECT COUNT(*) as count FROM usuarios");
-const stmtInserirUsuario = db.prepare("INSERT INTO usuarios (email, senha) VALUES (?, ?)");
-const stmtListarTodas = db.prepare("SELECT * FROM tarefas");
-const stmtBuscarPorTitulo = db.prepare("SELECT * FROM tarefas WHERE titulo LIKE ?");
-const stmtBuscarPorId = db.prepare("SELECT * FROM tarefas WHERE id = ?");
-const stmtInserirTarefa = db.prepare("INSERT INTO tarefas (titulo, status, prioridade) VALUES (?, 'pending', ?)");
-const stmtDeletarTarefa = db.prepare("DELETE FROM tarefas WHERE id = ?");
-
 db.exec(`
     CREATE TABLE IF NOT EXISTS tarefas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,17 +55,28 @@ db.exec(`
 
     CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL, /* <-- ADICIONAMOS O UNIQUE AQUI */
         senha TEXT NOT NULL
     );
 `);
+
+const stmtContarUsuarios = db.prepare("SELECT COUNT(*) as count FROM usuarios");
+const stmtInserirUsuario = db.prepare("INSERT INTO usuarios (email, senha) VALUES (?, ?)");
+const stmtListarTodas = db.prepare("SELECT * FROM tarefas");
+const stmtBuscarPorTitulo = db.prepare("SELECT * FROM tarefas WHERE titulo LIKE ?");
+const stmtBuscarPorId = db.prepare("SELECT * FROM tarefas WHERE id = ?");
+const stmtInserirTarefa = db.prepare("INSERT INTO tarefas (titulo, status, prioridade) VALUES (?, 'pending', ?)");
+const stmtDeletarTarefa = db.prepare("DELETE FROM tarefas WHERE id = ?");
+const stmtBuscarUsuarioPorId = db.prepare("SELECT * FROM usuarios WHERE id = ?");
+const stmtBuscarUsuarioPorEmail = db.prepare("SELECT * FROM usuarios WHERE email = ?");
+
+
 
 // Bom: Tipagem correta sem usar "as any"
 const usuariosExistentes = stmtContarUsuarios.get() as { count: number };
 if (usuariosExistentes.count === 0) {
 // Bom: Usamos a busca já preparada e passamos os dados de forma parametrizada
-stmtInserirUsuario.run("admin@senai.com", "senha_super_secreta_123");
-}
+stmtInserirUsuario.run("admin@senai.com", bcrypt.hashSync("senha_super_secreta_123", 10));}
 
 console.log("Banco de dados SQLite inicializado com sucesso!");
 
@@ -216,11 +221,9 @@ throw new Error("Status inválido. Use 'pending' ou 'completed'.");
 camposParaAtualizar.push("status = ?");
 valoresParaAtualizar.push(status);
 }
-if (camposParaAtualizar.length === 0) return
-tarefaExistente;
+if (camposParaAtualizar.length === 0) return tarefaExistente;
 // Query dinâmica SEGURA: placeholders ? + valores array
-const sql = `UPDATE tarefas SET $
-{camposParaAtualizar.join(", ")} WHERE id = ?`;
+const sql = `UPDATE tarefas SET $ {camposParaAtualizar.join(", ")} WHERE id = ?`;
 valoresParaAtualizar.push(idParaAtualizar);
 db.prepare(sql).run(...valoresParaAtualizar);
 return stmtBuscarPorId.get(idParaAtualizar) as Tarefa;
@@ -246,4 +249,57 @@ app.listen(PORT, () => {
     console.log(`Servidor rodando em: http://localhost:${PORT}`);
 });
 
-//
+const JWT_SECRET = process.env.JWT_SECRET ||
+"super_secreto_desenvolvimento";
+
+interface Usuario {
+id: number;
+email: string;
+senha: string;
+}
+
+
+
+app.post("/api/auth/register", (req, res) => {
+const { email, senha } = req.body;
+// Validação inicial dos dados
+if (typeof email !== "string" || typeof senha !== "string") {
+return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
+}
+if (senha.trim().length < 6) {
+return res.status(400).json({ error: "A senha deve ter ao menos 6 caracteres." });
+}
+// Criando a "impressão digital" da senha
+const hash = bcrypt.hashSync(senha, 10);
+try {
+const resultado = stmtInserirUsuario.run(email.trim(), hash);
+const usuario =
+stmtBuscarUsuarioPorId.get(resultado.lastInsertRowid) as Usuario;
+return res.status(201).json({ id: usuario.id, email:
+usuario.email });
+} catch {
+return res.status(409).json({ error: "E-mail já cadastrado." });
+}
+});
+
+app.post("/api/auth/login", (req, res) => {
+const { email, senha } = req.body;
+if (typeof email !== "string" || typeof senha !== "string") {
+return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
+}
+const usuario = stmtBuscarUsuarioPorEmail.get(email.trim()) as
+Usuario | undefined;
+// Compara SEMPRE com hash (mesmo se usuário não existir) para evitar vazamento
+const hashEsperado = usuario?.senha ??
+"$2a$10$fakehashparanaquebrarcomparacao";
+const senhaOk = bcrypt.compareSync(senha, hashEsperado);
+if (!usuario || !senhaOk) {
+return res.status(401).json({ error: "Credenciais inválidas." });
+}
+// Gerando o "Crachá" de acesso
+const token = jwt.sign({ id: usuario.id, email: usuario.email },
+JWT_SECRET, {
+expiresIn: "2h",
+});
+return res.json({ token });
+});

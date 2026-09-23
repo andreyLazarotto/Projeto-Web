@@ -87,3 +87,6 @@ GET http://localhost:3000/api/tasks?search=a&search=b
 propósito e com segurança.
 GET http://localhost:3000/api/tasks?search[]=a&search[]=b
 
+
+
+

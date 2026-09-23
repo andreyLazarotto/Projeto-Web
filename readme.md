@@ -1,15 +1,15 @@
 README:
 Estrutura modelo para o arquivo MD do diário:
-# Aula 04 —Evoluindo a Segurança das Rotas de Escrita (16/09/2026)
+# Aula 05 — Adicionando Autenticação e Segurança (Registro e Login) (23/09/2026)
 
 ## ✅ O que eu aprendi
-Hoje eu aprendi sobre como aumentar a segurança das rotas de escrita de uma API, principalmente nas operações post, put, patch e delete e que a importância de validar os tipos dos dados, normalizar valores permitidos e centralizar a validação de IDs com funções auxiliares.
+eu aprendi como adicionar autenticação e segurança em uma aplicação, principalmente no cadastro e login de usuários. Entendi que as senhas não devem ser salvas diretamente no banco, mas sim transformadas em um hash usando o bcrypt.
 
 ## 🧩 Principal dificuldade
-Dificuldade como proteger as rotas contra dados maliciosos e como diferenciar os tratamentos de cada operação. Como é a primeira vez fazendo algo assim.
+Dificuldade como funciona o processo de registro e login, principalmente a diferença entre a senha original e o hash gerado pelo bcrypt e como o JWT é criado depois que o usuário faz login corretamente.
 
 ## 🔧 Como eu resolvi
-É necessário validar os dados antes de permitir que eles cheguem ao banco, e que o sistema deve retornar erros genéricos para o cliente, enquanto os detalhes reais ficam registrados nos logs do servidor.
-
+Seguindo as etapas da aula e fazendo as validações antes de cadastrar ou realizar o login. Também o sistema verifica a senha usando o hash, impede e-mails duplicados e, quando o login está correto, gera um token JWT com validade de 2 horas.
 ## 💡Observações (opcional)
-Que é sempre importante evitar SQL Injection, garantir que alterações sejam feitas de forma segura e utilizar rollback quando uma operação falhar. 
+Que é muito importante nunca armazenar senhas em texto puro e que o JWT_SECRET deve ser protegido e utilizado por meio de variáveis de ambiente em produção.
+
