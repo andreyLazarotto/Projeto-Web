@@ -1,3 +1,7 @@
+# ARQUIVO HISTÓRICO: contém exemplos de etapas anteriores do curso.
+# Como as rotas /api/tasks agora exigem JWT, requisições antigas sem Authorization
+# podem responder 401. Para validar a Aula 06, use request.http.
+#
 # requests.http — Testes da API (REST Client) 📡
 #
 # Como usar (VS Code + extensão REST Client):

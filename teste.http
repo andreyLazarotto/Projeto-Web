@@ -1,97 +1,53 @@
+# Testes principais da Aula 06 — Gerenciador de Tarefas
+# Instale a extensão REST Client no VS Code.
+# Suba a API na raiz com: npm run dev
 @baseUrl = http://localhost:3000
 
-
-### Servidor no ar???
+### 1. Health check -> 200
 GET {{baseUrl}}/api/health
 
+### 2. Registrar usuário -> 201 na primeira execução
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
 
-### Versão do gerenciador de tarefas
-GET {{baseUrl}}/api/version
+{
+  "email": "aluno@senai.com",
+  "senha": "minhaSenhaSegura123"
+}
 
+### 3. Login e captura do JWT -> 200
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
 
-### Listar tarefas
+{
+  "email": "aluno@senai.com",
+  "senha": "minhaSenhaSegura123"
+}
+
+> {% client.global.set("token", response.body.token); %}
+
+### 4. Tentar listar tarefas sem token -> 401
 GET {{baseUrl}}/api/tasks
 
+### 5. Listar tarefas autenticado -> 200
+GET {{baseUrl}}/api/tasks
+Authorization: Bearer {{token}}
 
-### Cadastrar uma tarefa
+### 6. Criar tarefa autenticado -> 201
 POST {{baseUrl}}/api/tasks
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
-    "title": "Dormir cedo hoje"
+  "titulo": "Estudar React",
+  "prioridade": "high"
 }
 
-### 33. Quebrando o Type Guard: Título numérico (deve retornar 400)
-# O invasor tenta mandar um número (123) no lugar de uma string.
-# A nossa função tituloValido() vai barrar isso graças à verificação typeof
-t === "string".
-POST http://localhost:3000/api/tasks
-Content-Type: application/json
-{
-"titulo": 123,
-"prioridade": "high"
-}
-
-### 34. Quebrando a Allowlist: Status não permitido (deve retornar 400)
-# O invasor tenta inventar um status que não existe no banco ("cancelled").
-# Nossa rota PATCH verifica a lista STATUS_VALIDOS e barra a ação antes
-mesmo de abrir a transação no banco.
-PATCH http://localhost:3000/api/tasks/1
-Content-Type: application/json
-{
-"status": "cancelled"
-}
-
-//
-
-
-### Testes de Autenticação
-
-### 35. Registro com Sucesso (deve retornar 201)
-POST http://localhost:3000/api/auth/register
+### 7. Login com senha incorreta -> 401
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-"email": "aluno@senai.com",
-"senha": "minhaSenhaSegura123"
+  "email": "aluno@senai.com",
+  "senha": "senhaErrada"
 }
-
-### 36. Quebrando a Validação: Senha muito curta (deve retornar 400)
-POST http://localhost:3000/api/auth/register
-Content-Type: application/json
-
-{
-"email": "teste@senai.com",
-"senha": "123"
-}
-
-### 37. Testando a Duplicidade: E-mail já cadastrado (deve retornar
-409)
-# Execute o teste 35 novamente e depois este aqui. O banco deve barrar!
-POST http://localhost:3000/api/auth/register
-Content-Type: application/json
-
-{
-"email": "aluno@senai.com",
-"senha": "outrasenha456"
-}
-
-### 38. Login com Sucesso (deve retornar o Token JWT)
-# Guarde o "token" gerado na resposta, vamos usá-lo na próxima aula!
-POST http://localhost:3000/api/auth/login
-Content-Type: application/json
-
-{
-"email": "aluno@senai.com",
-"senha": "minhaSenhaSegura123"
-}
-
-### 39. Login com Senha Incorreta (deve retornar 401)
-POST http://localhost:3000/api/auth/login
-Content-Type: application/json
-
-{
-"email": "aluno@senai.com",
-"senha": "senhaerrada"
-}
-

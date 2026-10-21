@@ -1,307 +1,314 @@
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import express from "express";
-import cors from "cors";
-import Database from "better-sqlite3";
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import express, { type Request, type Response, type NextFunction } from 'express'
+import cors from 'cors'
+import Database from 'better-sqlite3'
 
-const app = express();
-const PORT = Number(process.env.PORT) || 3000;
-
-// 1. Criamos um "molde" (Interface) para nossas tarefas
 interface Tarefa {
-id: number;
-titulo: string;
-status: string;
-prioridade: string;
+  id: number
+  titulo: string
+  status: 'pending' | 'completed'
+  prioridade: 'low' | 'medium' | 'high'
+  usuario_id: number
 }
-
-// 2. Centralizamos as regras. Se a regra mudar, mudamos em um só lugar!
-const PRIORIDADES = ["low", "medium", "high"] as const;
-const STATUS_VALIDOS = ["pending", "completed"] as const;
-
-// 3. Funções ajudantes (Helpers). Escrevemos a validação uma vez e usamos em todo lugar.
-const tituloValido = (t: unknown): t is string =>
-typeof t === "string" && t.trim().length >= 3;
-const normalizarPrioridade = (p: unknown) => {
-const listaPrioridades = PRIORIDADES as readonly string[];
-return typeof p === "string" && listaPrioridades.includes(p)
-? p
-: "medium";
-};
-const normalizarStatus = (s: unknown) => {
-const listaStatus = STATUS_VALIDOS as readonly string[];
-return typeof s === "string" && listaStatus.includes(s)
-? s
-: "pending";
-};
-// 4. Um ajudante só para transformar e validar IDs
-const parsearId = (idParam: string): number | null => {
-const id = Number(idParam);
-// Number("12abc") vira NaN imediatamente, o que é mais seguro!
-return isNaN(id) ? null : id;
-};
-
-app.use(cors()); // Permite o front-end Vite (localhost:5173) acessar a API.
-app.use(express.json());
-
-const db = new Database("tarefas.db");
-
-// Escrevemos (compilamos) as buscas UMA ÚNICA VEZ e guardamos na memória.
-db.exec(`
-    CREATE TABLE IF NOT EXISTS tarefas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        titulo TEXT NOT NULL,
-        status TEXT DEFAULT 'pending',
-        prioridade TEXT DEFAULT 'medium'
-    );
-
-    CREATE TABLE IF NOT EXISTS usuarios (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE NOT NULL, /* <-- ADICIONAMOS O UNIQUE AQUI */
-        senha TEXT NOT NULL
-    );
-`);
-
-const stmtContarUsuarios = db.prepare("SELECT COUNT(*) as count FROM usuarios");
-const stmtInserirUsuario = db.prepare("INSERT INTO usuarios (email, senha) VALUES (?, ?)");
-const stmtListarTodas = db.prepare("SELECT * FROM tarefas");
-const stmtBuscarPorTitulo = db.prepare("SELECT * FROM tarefas WHERE titulo LIKE ?");
-const stmtBuscarPorId = db.prepare("SELECT * FROM tarefas WHERE id = ?");
-const stmtInserirTarefa = db.prepare("INSERT INTO tarefas (titulo, status, prioridade) VALUES (?, 'pending', ?)");
-const stmtDeletarTarefa = db.prepare("DELETE FROM tarefas WHERE id = ?");
-const stmtBuscarUsuarioPorId = db.prepare("SELECT * FROM usuarios WHERE id = ?");
-const stmtBuscarUsuarioPorEmail = db.prepare("SELECT * FROM usuarios WHERE email = ?");
-
-
-
-// Bom: Tipagem correta sem usar "as any"
-const usuariosExistentes = stmtContarUsuarios.get() as { count: number };
-if (usuariosExistentes.count === 0) {
-// Bom: Usamos a busca já preparada e passamos os dados de forma parametrizada
-stmtInserirUsuario.run("admin@senai.com", bcrypt.hashSync("senha_super_secreta_123", 10));}
-
-console.log("Banco de dados SQLite inicializado com sucesso!");
-
-app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", message: "Servidor do Gestor de Tarefas ativo!"});
-});
-
-app.get("/api/version", (req, res) => {
-    res.json({ appName: "Gerenciador de Tarefas Multi-Usuário", version: "1.0.0" });
-});
-
-app.get("/api/tasks", (req, res) => {
-// 1. Coerção Segura: Forçamos a variável a ser uma String vazia caso tentem nos enviar
-//um Array
-const search = typeof req.query.search === "string" ? req.query.search : "";
-try {
-if (search) {
-// 2. Proteção: O '%' entra DEPOIS, apenas dentro do parâmetro
-const tarefas = stmtBuscarPorTitulo.all(`%${search}%`);
-res.json(tarefas);
-} else {
-// 3. Performance: Usamos a busca compilada lá do Passo 2
-const tarefas = stmtListarTodas.all();
-res.json(tarefas);
-}
-} catch {
-// 4. Erro Controlado: Se algo quebrar, damos uma mensagem genérica para não vazar
-//a estrutura do banco
-res.status(500).json({ error: "Erro interno ao processar a listagem." });
-}
-});
-
-
-app.post("/api/tasks", (req, res) => {
-const { titulo, prioridade } = req.body;
-const prioridadeValida = normalizarPrioridade(prioridade);
-// Validação via helper (type guard)
-if (!tituloValido(titulo)) {
-return res.status(400).json({
-error: "O título da tarefa é obrigatório e deve conter pelo menos 3 caracteres válidos."
-});
-}
-try {
-const resultado = stmtInserirTarefa.run(titulo.trim(),
-prioridadeValida);
-const novaTarefa =
-stmtBuscarPorId.get(resultado.lastInsertRowid) as Tarefa;
-return res.status(201).json(novaTarefa);
-} catch {
-return res.status(500).json({ error: "Erro ao processar persistência" });
-}
-});
-
-app.delete("/api/tasks/:id", (req, res) => {
-// Validação de ID padronizada (igual PUT/PATCH)
-const idParaDeletar = parsearId(req.params.id);
-if (idParaDeletar === null) {
-return res.status(400).json({ error: "ID inválido." });
-}
-try {
-const resultado = stmtDeletarTarefa.run(idParaDeletar);
-if (resultado.changes === 0) {
-return res.status(404).json({ error: "Tarefa não localizada para exclusão." });
-}
-res.json({ message: "Tarefa excluída do banco SQLite com sucesso!" });
-} catch {
-res.status(500).json({ error: "Erro interno ao processar a exclusão." });
-}
-});
-
-app.put("/api/tasks/:id", (req, res) => {
-const idParaAtualizar = parsearId(req.params.id);
-if (idParaAtualizar === null) {
-return res.status(400).json({ error: "ID inválido." });
-}
-const { titulo, prioridade, status } = req.body;
-// Validação via helpers
-if (!tituloValido(titulo)) {
-return res.status(400).json({
-error: "O título da tarefa é obrigatório e deve conter pelo menos 3 caracteres válidos."
-});
-}
-const prioridadeValida = normalizarPrioridade(prioridade);
-const statusValido = normalizarStatus(status);
-try {
-// Prepared statement inline (UPDATE completo não tem statement fixo no topo)
-const sql = "UPDATE tarefas SET titulo = ?, status = ?, prioridade = ? WHERE id = ?";
-const resultado = db.prepare(sql).run(titulo.trim(),
-statusValido, prioridadeValida, idParaAtualizar);
-if (resultado.changes === 0) {
-return res.status(404).json({ message: "Tarefa não encontrada para atualização!" });
-}
-const tarefaAtualizada =
-stmtBuscarPorId.get(idParaAtualizar) as Tarefa;
-return res.status(200).json(tarefaAtualizada);
-} catch {
-return res.status(500).json({ error: "Erro ao processar a atualização no banco de dados." });
-}
-});
-
-
-app.patch("/api/tasks/:id", (req, res) => {
-const idParaAtualizar = parsearId(req.params.id);
-if (idParaAtualizar === null) {
-return res.status(400).json({ error: "ID inválido." });
-}
-if (!req.body || Object.keys(req.body).length === 0) {
-return res.status(400).json({ error: "Nenhum campo fornecido para atualização." });
-}
-const { titulo, prioridade, status } = req.body;
-try {
-const fluxoAtualizacao = db.transaction(() => {
-// Busca com statement singleton
-const tarefaExistente =
-stmtBuscarPorId.get(idParaAtualizar) as Tarefa | undefined;
-if (!tarefaExistente) return null;
-const camposParaAtualizar: string[] = [];
-const valoresParaAtualizar: unknown[] = [];
-// Título (se enviado)
-if (titulo !== undefined) {
-if (!tituloValido(titulo)) {
-throw new Error("O título da tarefa deve conter pelo menos 3 caracteres válidos.");
-}
-camposParaAtualizar.push("titulo = ?");
-valoresParaAtualizar.push(titulo.trim());
-}
-// Prioridade (se enviada)
-if (prioridade !== undefined) {
-if (!PRIORIDADES.includes(prioridade as typeof
-PRIORIDADES[number])) {
-throw new Error("Prioridade inválida. Use 'low', 'medium' ou 'high'.");
-}
-camposParaAtualizar.push("prioridade = ?");
-valoresParaAtualizar.push(prioridade);
-}
-// Status (se enviado)
-if (status !== undefined) {
-if (!STATUS_VALIDOS.includes(status as typeof
-STATUS_VALIDOS[number])) {
-throw new Error("Status inválido. Use 'pending' ou 'completed'.");
-}
-camposParaAtualizar.push("status = ?");
-valoresParaAtualizar.push(status);
-}
-if (camposParaAtualizar.length === 0) return tarefaExistente;
-// Query dinâmica SEGURA: placeholders ? + valores array
-const sql = `UPDATE tarefas SET ${camposParaAtualizar.join(", ")} WHERE id = ?`;
-valoresParaAtualizar.push(idParaAtualizar);
-db.prepare(sql).run(...valoresParaAtualizar);
-return stmtBuscarPorId.get(idParaAtualizar) as Tarefa;
-});
-const resultado = fluxoAtualizacao();
-if (!resultado) {
-return res.status(404).json({ message: "Tarefa não encontrada para atualização parcial!" });
-}
-return res.status(200).json(resultado);
-} catch (erro) {
-// Distingue erro de validação (400) de erro interno (500)
-if (erro instanceof Error &&
-(erro.message.includes("inválid") ||
-erro.message.includes("caracteres"))) {
-return res.status(400).json({ error: erro.message });
-}
-return res.status(500).json({ error: "Erro ao processar a atualização parcial no banco." });
-}
-});
-
-
-app.listen(PORT, () => {
-    console.log(`Servidor rodando em: http://localhost:${PORT}`);
-});
-
-const JWT_SECRET = process.env.JWT_SECRET ||
-"super_secreto_desenvolvimento";
 
 interface Usuario {
-id: number;
-email: string;
-senha: string;
+  id: number
+  email: string
+  senha: string
 }
 
+declare global {
+  namespace Express {
+    interface Request {
+      usuarioId?: number
+    }
+  }
+}
 
+const app = express()
+const PORT = Number(process.env.PORT) || 3000
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secreto_desenvolvimento'
+const PRIORIDADES = ['low', 'medium', 'high'] as const
+const STATUS_VALIDOS = ['pending', 'completed'] as const
 
-app.post("/api/auth/register", (req, res) => {
-const { email, senha } = req.body;
-// Validação inicial dos dados
-if (typeof email !== "string" || typeof senha !== "string") {
-return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
-}
-if (senha.trim().length < 6) {
-return res.status(400).json({ error: "A senha deve ter ao menos 6 caracteres." });
-}
-// Criando a "impressão digital" da senha
-const hash = bcrypt.hashSync(senha, 10);
-try {
-const resultado = stmtInserirUsuario.run(email.trim(), hash);
-const usuario =
-stmtBuscarUsuarioPorId.get(resultado.lastInsertRowid) as Usuario;
-return res.status(201).json({ id: usuario.id, email:
-usuario.email });
-} catch {
-return res.status(409).json({ error: "E-mail já cadastrado." });
-}
-});
+const db = new Database('tarefas.db')
+db.pragma('foreign_keys = ON')
+app.use(cors())
+app.use(express.json())
 
-app.post("/api/auth/login", (req, res) => {
-const { email, senha } = req.body;
-if (typeof email !== "string" || typeof senha !== "string") {
-return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
+const tituloValido = (valor: unknown): valor is string =>
+  typeof valor === 'string' && valor.trim().length >= 3
+
+const parsearId = (valor: string): number | null => {
+  const id = Number(valor)
+  return Number.isInteger(id) && id > 0 ? id : null
 }
-const usuario = stmtBuscarUsuarioPorEmail.get(email.trim()) as
-Usuario | undefined;
-// Compara SEMPRE com hash (mesmo se usuário não existir) para evitar vazamento
-const hashEsperado = usuario?.senha ??
-"$2a$10$fakehashparanaquebrarcomparacao";
-const senhaOk = bcrypt.compareSync(senha, hashEsperado);
-if (!usuario || !senhaOk) {
-return res.status(401).json({ error: "Credenciais inválidas." });
+
+// Cria o esquema atual e adapta uma base antiga da Aula 05, se necessário.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS usuarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    senha TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS tarefas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    prioridade TEXT NOT NULL DEFAULT 'medium',
+    usuario_id INTEGER REFERENCES usuarios(id)
+  );
+`)
+
+const colunasTarefas = db.prepare('PRAGMA table_info(tarefas)').all() as Array<{ name: string }>
+if (!colunasTarefas.some((coluna) => coluna.name === 'usuario_id')) {
+  db.exec('ALTER TABLE tarefas ADD COLUMN usuario_id INTEGER REFERENCES usuarios(id)')
 }
-// Gerando o "Crachá" de acesso
-const token = jwt.sign({ id: usuario.id, email: usuario.email },
-JWT_SECRET, {
-expiresIn: "2h",
-});
-return res.json({ token });
-});
+
+// Conta administrativa de demonstração usada nos materiais da disciplina.
+const adminEmail = 'admin@senai.com'
+const adminSenha = 'senha_super_secreta_123'
+const buscarAdmin = db.prepare('SELECT id, email, senha FROM usuarios WHERE email = ?')
+const adminExistente = buscarAdmin.get(adminEmail) as Usuario | undefined
+if (!adminExistente) {
+  db.prepare('INSERT INTO usuarios (email, senha) VALUES (?, ?)').run(
+    adminEmail,
+    bcrypt.hashSync(adminSenha, 10),
+  )
+} else if (!bcrypt.compareSync(adminSenha, adminExistente.senha)) {
+  // Corrige contas antigas que possam ter sido gravadas em texto puro.
+  db.prepare('UPDATE usuarios SET senha = ? WHERE id = ?').run(
+    bcrypt.hashSync(adminSenha, 10),
+    adminExistente.id,
+  )
+}
+
+const autenticar = (req: Request, res: Response, next: NextFunction): void => {
+  const autorizacao = req.headers.authorization
+  const token = autorizacao?.startsWith('Bearer ') ? autorizacao.slice(7) : ''
+
+  if (!token) {
+    res.status(401).json({ error: 'Autenticação necessária.' })
+    return
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload
+    if (typeof payload.id !== 'number') {
+      res.status(401).json({ error: 'Token inválido.' })
+      return
+    }
+    req.usuarioId = payload.id
+    next()
+  } catch {
+    res.status(401).json({ error: 'Token inválido ou expirado.' })
+  }
+}
+
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', message: 'Servidor do Gestor de Tarefas ativo!' })
+})
+
+app.get('/api/version', (_req, res) => {
+  res.json({ appName: 'Gerenciador de Tarefas Multi-Usuário', version: '1.0.0' })
+})
+
+app.post('/api/auth/register', (req, res) => {
+  const corpo = req.body ?? {}
+  const email = corpo.email
+  const senha = corpo.senha
+
+  if (typeof email !== 'string' || typeof senha !== 'string' || !email.trim()) {
+    res.status(400).json({ error: 'E-mail e senha são obrigatórios.' })
+    return
+  }
+  if (!email.includes('@')) {
+    res.status(400).json({ error: 'Informe um e-mail válido.' })
+    return
+  }
+  if (senha.trim().length < 6) {
+    res.status(400).json({ error: 'A senha deve ter ao menos 6 caracteres.' })
+    return
+  }
+
+  try {
+    const resultado = db.prepare('INSERT INTO usuarios (email, senha) VALUES (?, ?)').run(
+      email.trim(),
+      bcrypt.hashSync(senha, 10),
+    )
+    res.status(201).json({ id: Number(resultado.lastInsertRowid), email: email.trim() })
+  } catch {
+    res.status(409).json({ error: 'E-mail já cadastrado.' })
+  }
+})
+
+app.post('/api/auth/login', (req, res) => {
+  const corpo = req.body ?? {}
+  const email = corpo.email
+  const senha = corpo.senha
+
+  if (typeof email !== 'string' || typeof senha !== 'string') {
+    res.status(400).json({ error: 'E-mail e senha são obrigatórios.' })
+    return
+  }
+
+  const usuario = db.prepare('SELECT id, email, senha FROM usuarios WHERE email = ?')
+    .get(email.trim()) as Usuario | undefined
+  const hashFalso = '$2a$10$fakehashparanaquebrarcomparacao'
+  const senhaCorreta = bcrypt.compareSync(senha, usuario?.senha ?? hashFalso)
+
+  if (!usuario || !senhaCorreta) {
+    res.status(401).json({ error: 'Credenciais inválidas.' })
+    return
+  }
+
+  const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, {
+    expiresIn: '2h',
+  })
+  res.json({ token })
+})
+
+// Todas as rotas de tarefas exigem JWT e filtram pelo dono da tarefa.
+app.get('/api/tasks', autenticar, (req, res) => {
+  const busca = typeof req.query.search === 'string' ? req.query.search : ''
+  const usuarioId = req.usuarioId!
+  const tarefas = busca
+    ? db.prepare('SELECT id, titulo, status, prioridade FROM tarefas WHERE usuario_id = ? AND titulo LIKE ? ORDER BY id DESC')
+        .all(usuarioId, `%${busca}%`)
+    : db.prepare('SELECT id, titulo, status, prioridade FROM tarefas WHERE usuario_id = ? ORDER BY id DESC')
+        .all(usuarioId)
+  res.json(tarefas)
+})
+
+app.post('/api/tasks', autenticar, (req, res) => {
+  const corpo = req.body ?? {}
+  const titulo = corpo.titulo
+  const prioridade = corpo.prioridade
+  if (!tituloValido(titulo)) {
+    res.status(400).json({ error: 'O título da tarefa é obrigatório e deve conter pelo menos 3 caracteres válidos.' })
+    return
+  }
+  const prioridadeValida = typeof prioridade === 'string' &&
+    PRIORIDADES.includes(prioridade as (typeof PRIORIDADES)[number])
+    ? prioridade
+    : 'medium'
+
+  const resultado = db.prepare(
+    "INSERT INTO tarefas (titulo, status, prioridade, usuario_id) VALUES (?, 'pending', ?, ?)",
+  ).run(titulo.trim(), prioridadeValida, req.usuarioId!)
+  const tarefa = db.prepare(
+    'SELECT id, titulo, status, prioridade FROM tarefas WHERE id = ?',
+  ).get(Number(resultado.lastInsertRowid)) as Tarefa
+  res.status(201).json(tarefa)
+})
+
+app.put('/api/tasks/:id', autenticar, (req, res) => {
+  const id = parsearId(String(req.params.id))
+  if (id === null) {
+    res.status(400).json({ error: 'ID inválido.' })
+    return
+  }
+  const corpo = req.body ?? {}
+  const { titulo, prioridade, status } = corpo
+  if (!tituloValido(titulo)) {
+    res.status(400).json({ error: 'O título da tarefa deve conter pelo menos 3 caracteres válidos.' })
+    return
+  }
+  if (typeof prioridade !== 'string' || !PRIORIDADES.includes(prioridade as (typeof PRIORIDADES)[number])) {
+    res.status(400).json({ error: 'Prioridade inválida. Use low, medium ou high.' })
+    return
+  }
+  if (typeof status !== 'string' || !STATUS_VALIDOS.includes(status as (typeof STATUS_VALIDOS)[number])) {
+    res.status(400).json({ error: 'Status inválido. Use pending ou completed.' })
+    return
+  }
+
+  const resultado = db.prepare(
+    'UPDATE tarefas SET titulo = ?, prioridade = ?, status = ? WHERE id = ? AND usuario_id = ?',
+  ).run(titulo.trim(), prioridade, status, id, req.usuarioId!)
+  if (resultado.changes === 0) {
+    res.status(404).json({ error: 'Tarefa não encontrada.' })
+    return
+  }
+  const tarefa = db.prepare(
+    'SELECT id, titulo, status, prioridade FROM tarefas WHERE id = ? AND usuario_id = ?',
+  ).get(id, req.usuarioId!)
+  res.json(tarefa)
+})
+
+app.patch('/api/tasks/:id', autenticar, (req, res) => {
+  const id = parsearId(String(req.params.id))
+  if (id === null) {
+    res.status(400).json({ error: 'ID inválido.' })
+    return
+  }
+  const corpo = req.body ?? {}
+  const campos: string[] = []
+  const valores: Array<string | number> = []
+
+  if (corpo.titulo !== undefined) {
+    if (!tituloValido(corpo.titulo)) {
+      res.status(400).json({ error: 'O título deve conter pelo menos 3 caracteres válidos.' })
+      return
+    }
+    campos.push('titulo = ?')
+    valores.push(corpo.titulo.trim())
+  }
+  if (corpo.prioridade !== undefined) {
+    if (typeof corpo.prioridade !== 'string' ||
+      !PRIORIDADES.includes(corpo.prioridade as (typeof PRIORIDADES)[number])) {
+      res.status(400).json({ error: 'Prioridade inválida.' })
+      return
+    }
+    campos.push('prioridade = ?')
+    valores.push(corpo.prioridade)
+  }
+  if (corpo.status !== undefined) {
+    if (typeof corpo.status !== 'string' ||
+      !STATUS_VALIDOS.includes(corpo.status as (typeof STATUS_VALIDOS)[number])) {
+      res.status(400).json({ error: 'Status inválido.' })
+      return
+    }
+    campos.push('status = ?')
+    valores.push(corpo.status)
+  }
+  if (campos.length === 0) {
+    res.status(400).json({ error: 'Nenhum campo válido foi fornecido.' })
+    return
+  }
+
+  valores.push(id, req.usuarioId!)
+  const resultado = db.prepare(
+    `UPDATE tarefas SET ${campos.join(', ')} WHERE id = ? AND usuario_id = ?`,
+  ).run(...valores)
+  if (resultado.changes === 0) {
+    res.status(404).json({ error: 'Tarefa não encontrada.' })
+    return
+  }
+  const tarefa = db.prepare(
+    'SELECT id, titulo, status, prioridade FROM tarefas WHERE id = ? AND usuario_id = ?',
+  ).get(id, req.usuarioId!)
+  res.json(tarefa)
+})
+
+app.delete('/api/tasks/:id', autenticar, (req, res) => {
+  const id = parsearId(String(req.params.id))
+  if (id === null) {
+    res.status(400).json({ error: 'ID inválido.' })
+    return
+  }
+  const resultado = db.prepare(
+    'DELETE FROM tarefas WHERE id = ? AND usuario_id = ?',
+  ).run(id, req.usuarioId!)
+  if (resultado.changes === 0) {
+    res.status(404).json({ error: 'Tarefa não encontrada.' })
+    return
+  }
+  res.json({ message: 'Tarefa excluída com sucesso.' })
+})
+
+app.listen(PORT, () => {
+  console.log(`Servidor rodando em: http://localhost:${PORT}`)
+})
