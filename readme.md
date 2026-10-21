@@ -1,6 +1,6 @@
 README:
 Estrutura modelo para o arquivo MD do diário:
-# Aula 06 — Introdução do REACT (07/10/2026)
+# Aula 07 — Tela de Login e Registro no React (14/10/2026)
 
 ## ✅ O que eu aprendi
 Eu aprendi como criar uma tela de login e cadastro usando React, Vite e TypeScript. Entendi como fazer o usuário preencher os campos de e-mail e senha, enviar os dados para o back-end e utilizar autenticação com JWT para acessar o sistema.
