@@ -1,15 +1,15 @@
 README:
 Estrutura modelo para o arquivo MD do diário:
-# Aula 05 — Adicionando Autenticação e Segurança (Registro e Login) (23/09/2026)
+# Aula 06 — Introdução do REACT (07/10/2026)
 
 ## ✅ O que eu aprendi
-eu aprendi como adicionar autenticação e segurança em uma aplicação, principalmente no cadastro e login de usuários. Entendi que as senhas não devem ser salvas diretamente no banco, mas sim transformadas em um hash usando o bcrypt.
+eu aprendi como criar uma interface usando React com Vite e TypeScript. Entendi como funcionam os componentes, o useState para contar cliques, o useEffect para conectar com o back-end e o .map() para mostrar uma lista de tarefas.
 
 ## 🧩 Principal dificuldade
-Dificuldade como funciona o processo de registro e login, principalmente a diferença entre a senha original e o hash gerado pelo bcrypt e como o JWT é criado depois que o usuário faz login corretamente.
+Dificuldade em fazer o React se comunicar com o back-end, principalmente na conexão com a API e no erro de CORS, que bloqueia as requisições entre portas diferentes.
 
 ## 🔧 Como eu resolvi
-Seguindo as etapas da aula e fazendo as validações antes de cadastrar ou realizar o login. Também o sistema verifica a senha usando o hash, impede e-mails duplicados e, quando o login está correto, gera um token JWT com validade de 2 horas.
-## 💡Observações (opcional)
-Que é muito importante nunca armazenar senhas em texto puro e que o JWT_SECRET deve ser protegido e utilizado por meio de variáveis de ambiente em produção.
+Seguindo as etapas da aula, criando os componentes e utilizando fetch para consultar a API. Também foi necessário configurar o CORS no servidor Express para permitir a comunicação entre o front-end e o back-end.
 
+## 💡Observações (opcional)
+Que o React atualiza a tela conforme o estado muda e que o .map() permite mostrar várias tarefas na interface sem precisar criar cada elemento manualmente.

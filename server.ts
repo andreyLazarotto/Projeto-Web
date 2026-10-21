@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import express from "express";
+import cors from "cors";
 import Database from "better-sqlite3";
 
 const app = express();
@@ -40,6 +41,7 @@ const id = Number(idParam);
 return isNaN(id) ? null : id;
 };
 
+app.use(cors()); // Permite o front-end Vite (localhost:5173) acessar a API.
 app.use(express.json());
 
 const db = new Database("tarefas.db");
@@ -223,7 +225,7 @@ valoresParaAtualizar.push(status);
 }
 if (camposParaAtualizar.length === 0) return tarefaExistente;
 // Query dinâmica SEGURA: placeholders ? + valores array
-const sql = `UPDATE tarefas SET $ {camposParaAtualizar.join(", ")} WHERE id = ?`;
+const sql = `UPDATE tarefas SET ${camposParaAtualizar.join(", ")} WHERE id = ?`;
 valoresParaAtualizar.push(idParaAtualizar);
 db.prepare(sql).run(...valoresParaAtualizar);
 return stmtBuscarPorId.get(idParaAtualizar) as Tarefa;
