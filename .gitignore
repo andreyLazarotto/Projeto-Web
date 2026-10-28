@@ -1,0 +1,19 @@
+# Dependências (backend e front-end)
+node_modules/
+
+# Build gerado pelo Vite
+web/dist/
+
+# Banco de dados local
+tarefas.db
+tarefas.db-journal
+*.db-wal
+*.db-shm
+
+# Segredos
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*

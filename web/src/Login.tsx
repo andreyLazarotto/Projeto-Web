@@ -112,7 +112,7 @@ export default function Login({ aoLogar }: LoginProps) {
           <button
             type="submit"
             disabled={carregando}
-            className="rounded-md bg-blue-600 py-2.5 font-semibold text-white transition hover:bg-blue-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-md bg-emerald-600 py-2.5 font-semibold text-white transition hover:bg-emerald-500 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {carregando ? 'Aguarde...' : ehLogin ? 'Entrar' : 'Criar conta'}
           </button>

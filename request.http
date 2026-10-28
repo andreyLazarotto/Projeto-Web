@@ -51,3 +51,27 @@ Content-Type: application/json
   "email": "aluno@senai.com",
   "senha": "senhaErrada"
 }
+
+
+# ============================================================================
+# AULA 08 — FRONT SERVIDO PELO BACK
+# Confira status e Content-Type das respostas.
+# ============================================================================
+
+### 42. GET / entrega a tela React (200 text/html)
+GET http://localhost:3000/
+
+### 43. GET /tarefas é uma rota do React (SPA fallback)
+GET http://localhost:3000/tarefas
+
+### 44. GET /favicon.svg deve retornar um arquivo, não HTML
+GET http://localhost:3000/favicon.svg
+
+### 45. Rota de API inexistente deve retornar 404 JSON
+GET http://localhost:3000/api/typo
+
+### 46. /apixyz não é uma rota /api
+GET http://localhost:3000/apixyz
+
+### 47. A API continua funcionando
+GET http://localhost:3000/api/health

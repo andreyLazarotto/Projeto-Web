@@ -1,0 +1,17 @@
+# Aula 09 — Servindo o Front pelo Back (28/10/2026)
+
+## Commit do dia
+
+(Adicionar o link do commit depois de enviar as alterações ao GitHub.)
+
+## ✅ O que eu aprendi
+Aprendi a servir o React pelo Express usando a pasta web/dist, deixando o front e a API no mesmo endereço.
+
+## 🧩 Principal dificuldade
+Ajustar os caminhos do build e garantir que as rotas do React não atrapalhem as rotas da API.
+
+## 🔧 Como eu resolvi
+Configurei o Express para entregar os arquivos do React, responder com index.html nas rotas da tela e retornar JSON quando uma rota da API não existe.
+
+## 💡 Observações
+Antes de iniciar o servidor, preciso executar npm run build:web.

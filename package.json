@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "tsx watch server.ts",
     "start": "tsx server.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "build:web": "npm --prefix web run build",
+    "dev:web": "npm --prefix web run dev"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

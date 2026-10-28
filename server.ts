@@ -3,6 +3,9 @@ import jwt from 'jsonwebtoken'
 import express, { type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
 import Database from 'better-sqlite3'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 interface Tarefa {
   id: number
@@ -29,6 +32,36 @@ declare global {
 const app = express()
 const PORT = Number(process.env.PORT) || 3000
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secreto_desenvolvimento'
+
+// Caminhos absolutos do front compilado (projeto ESM, sem __dirname nativo).
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const FRONT_DIST = path.join(__dirname, 'web', 'dist')
+const FRONT_INDEX = path.join(FRONT_DIST, 'index.html')
+
+const SEM_BUILD = [
+  'Ainda não existe o build do front-end.',
+  '',
+  'Procurei este arquivo:',
+  `  ${FRONT_INDEX}`,
+  '',
+  'Gere-o com:',
+  '  npm run build:web',
+  '',
+  'Enquanto isso, a API continua funcionando em /api/health.',
+].join('\n')
+
+function maisRecente(dir: string): number {
+  let maior = 0
+  for (const entrada of fs.readdirSync(dir, { withFileTypes: true })) {
+    const caminho = path.join(dir, entrada.name)
+    if (entrada.isDirectory()) {
+      maior = Math.max(maior, maisRecente(caminho))
+    } else {
+      maior = Math.max(maior, fs.statSync(caminho).mtimeMs)
+    }
+  }
+  return maior
+}
 const PRIORIDADES = ['low', 'medium', 'high'] as const
 const STATUS_VALIDOS = ['pending', 'completed'] as const
 
@@ -309,6 +342,39 @@ app.delete('/api/tasks/:id', autenticar, (req, res) => {
   res.json({ message: 'Tarefa excluída com sucesso.' })
 })
 
+// Uma rota /api inexistente deve retornar JSON, nunca o HTML do React.
+app.use('/api', (_req: Request, res: Response) => {
+  res.status(404).json({ error: 'Rota de API não encontrada.' })
+})
+
+// Entrega os arquivos gerados pelo Vite.
+app.use(express.static(FRONT_DIST))
+
+// Rotas do React (SPA): ao atualizar /tarefas, devolvemos o index para o React.
+app.get(/(.*)/, (_req: Request, res: Response) => {
+  if (!fs.existsSync(FRONT_INDEX)) {
+    return res.status(503).type('text/plain').send(SEM_BUILD)
+  }
+  return res.sendFile(FRONT_INDEX)
+})
+
+function verificarFront(): void {
+  if (!fs.existsSync(FRONT_INDEX)) {
+    console.warn('\n[ATENÇÃO] ' + SEM_BUILD + '\n')
+    return
+  }
+  const fontes = path.join(__dirname, 'web', 'src')
+  if (fs.existsSync(fontes) && maisRecente(fontes) > fs.statSync(FRONT_INDEX).mtimeMs) {
+    console.warn(
+      '\n[ATENÇÃO] O build do front está VELHO: algum arquivo de web/src mudou depois do último build.\n' +
+      '          Rode `npm run build:web` para atualizar.\n',
+    )
+  }
+}
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando em: http://localhost:${PORT}`)
+  console.log(`API:   http://localhost:${PORT}/api/health`)
+  console.log(`Front: http://localhost:${PORT}`)
+  verificarFront()
 })

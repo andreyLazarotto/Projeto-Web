@@ -3,7 +3,7 @@
  * O token serve para autenticar as requisições; o servidor é quem valida
  * a assinatura e decide se o acesso é permitido.
  */
-const API_BASE = 'http://localhost:3000'
+const API_BASE = import.meta.env.DEV ? 'http://localhost:3000' : ''
 const TOKEN_KEY = 'gestor:token'
 
 export interface AuthResult {
