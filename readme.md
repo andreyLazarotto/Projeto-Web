@@ -1,6 +1,6 @@
 # Gerenciador de Tarefas — Projeto Web
 
-#📌 Sobre o projeto
+# 📌 Sobre o projeto
 
 Este projeto foi desenvolvido como parte das aulas de desenvolvimento Web, com o objetivo de praticar a criação de uma aplicação completa utilizando React no front-end e Node.js com Express no back-end.
 
@@ -20,7 +20,7 @@ bcrypt: proteção das senhas por meio de hash.
 
 npm: instalação e gerenciamento das dependências.
 
-#⚙️ Funcionalidades
+# ⚙️ Funcionalidades
 
 Cadastro e login de usuários.
 
@@ -80,10 +80,10 @@ package.json — dependências e scripts de execução.
 
 .gitignore — arquivos e pastas que não devem ser enviados ao Git.
 
-🎯 Objetivo das aulas
+# 🎯 Objetivo das aulas
 
 O desenvolvimento permite praticar a integração entre front-end e back-end, o uso de autenticação, a manipulação de dados por meio de operações CRUD e a configuração de um servidor para disponibilizar a aplicação web.
 
-👨‍💻 Considerações finais
+# 👨‍💻 Considerações finais
 
 O projeto reúne os principais conceitos estudados nas aulas, permitindo compreender como as diferentes tecnologias trabalham juntas para construir uma aplicação web funcional e organizada.
