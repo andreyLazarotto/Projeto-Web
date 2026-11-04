@@ -13,6 +13,8 @@ tarefas.db-journal
 # Segredos
 .env
 .env.local
+.env.*
+!.env.example
 
 # Logs
 *.log

@@ -1,0 +1,17 @@
+# Aula 09 — Banco de Dados em Nuvem com Turso e libSQL (04/11/2026)
+
+## Commit do dia
+
+link
+
+## ✅ O que eu aprendi
+Aprendi a conectar o projeto ao Turso usando o libSQL e a trabalhar com consultas assíncronas.
+
+## 🧩 Principal dificuldade
+Adaptar as consultas do SQLite local para o novo banco sem perder os usuários e as tarefas que já existiam.
+
+## 🔧 Como eu resolvi
+Troquei o driver do banco, adaptei as rotas para usar async/await e preparei a inicialização das tabelas com db.batch().
+
+## 💡 Observações
+Sem TURSO_URL e TURSO_TOKEN, o projeto continua usando o SQLite local. Para usar a nuvem, preciso configurar o arquivo .env.
