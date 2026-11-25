@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: gerenciador-de-tarefas
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TURSO_URL
+        sync: false
+      - key: TURSO_TOKEN
+        sync: false
+    healthCheckPath: /api/health
+    autoDeploy: true

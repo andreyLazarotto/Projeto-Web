@@ -1,0 +1,77 @@
+# Testes principais da Aula 06 — Gerenciador de Tarefas
+# Instale a extensão REST Client no VS Code.
+# Suba a API na raiz com: npm run dev
+@baseUrl = http://localhost:3000
+
+### 1. Health check -> 200
+GET {{baseUrl}}/api/health
+
+### 2. Registrar usuário -> 201 na primeira execução
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "aluno@senai.com",
+  "senha": "minhaSenhaSegura123"
+}
+
+### 3. Login e captura do JWT -> 200
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "aluno@senai.com",
+  "senha": "minhaSenhaSegura123"
+}
+
+> {% client.global.set("token", response.body.token); %}
+
+### 4. Tentar listar tarefas sem token -> 401
+GET {{baseUrl}}/api/tasks
+
+### 5. Listar tarefas autenticado -> 200
+GET {{baseUrl}}/api/tasks
+Authorization: Bearer {{token}}
+
+### 6. Criar tarefa autenticado -> 201
+POST {{baseUrl}}/api/tasks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "titulo": "Estudar React",
+  "prioridade": "high"
+}
+
+### 7. Login com senha incorreta -> 401
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "aluno@senai.com",
+  "senha": "senhaErrada"
+}
+
+
+# ============================================================================
+# AULA 08 — FRONT SERVIDO PELO BACK
+# Confira status e Content-Type das respostas.
+# ============================================================================
+
+### 42. GET / entrega a tela React (200 text/html)
+GET http://localhost:3000/
+
+### 43. GET /tarefas é uma rota do React (SPA fallback)
+GET http://localhost:3000/tarefas
+
+### 44. GET /favicon.svg deve retornar um arquivo, não HTML
+GET http://localhost:3000/favicon.svg
+
+### 45. Rota de API inexistente deve retornar 404 JSON
+GET http://localhost:3000/api/typo
+
+### 46. /apixyz não é uma rota /api
+GET http://localhost:3000/apixyz
+
+### 47. A API continua funcionando
+GET http://localhost:3000/api/health

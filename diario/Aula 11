@@ -1,0 +1,21 @@
+# Aula 11 — Engenharia de Front-end com React, TypeScript e Arquitetura Web (18/11/2026)
+
+Commit do dia
+
+link
+
+## ✅ O que eu aprendi
+
+Aprendi a organizar melhor o projeto usando React e TypeScript, separar o código e melhorar a comunicação entre o front-end e a API. Também aprendi sobre estados e tratamento de erros.
+
+## 🧩 Principal dificuldade
+
+Minha principal dificuldade foi entender como evitar erros nas buscas quando as requisições demoram para responder.
+
+## 🔧 Como eu resolvi
+
+Estudando os exemplos da aula e aplicando as mudanças no projeto, utilizando useRef e organizando melhor as chamadas da API.
+
+## 💡 Observações
+
+Entendi que manter o código organizado ajuda a evitar erros e facilita futuras alterações no projeto.

@@ -1,0 +1,18 @@
+/* Tailwind CSS v4: ponto de entrada dos estilos utilitários. */
+@import "tailwindcss";
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--color-slate-950);
+  color: var(--color-slate-100);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
